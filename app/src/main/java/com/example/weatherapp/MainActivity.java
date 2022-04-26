@@ -1,6 +1,7 @@
 package com.example.weatherapp;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.recyclerview.widget.RecyclerView;
@@ -10,12 +11,16 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -90,13 +95,26 @@ public class MainActivity extends AppCompatActivity {
         if(ActivityCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this,Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED){
             ActivityCompat.requestPermissions(MainActivity.this,new String[]{Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.ACCESS_COARSE_LOCATION},PERMISSION_CODE);
         }
+        
+        
 
-        Location location=locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-        cityName = getCityName(location.getLongitude(),location.getLatitude());
+        if (isNetworkConnected()){
+            Location location=locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+            //   cityName = getCityName(location.getLongitude(),location.getLatitude());
 
-        getWeatherInfo(cityName);
+            if (location != null){
+                cityName = getCityName(location.getLongitude(),location.getLatitude());
+                getWeatherInfo(cityName);
+            } else {
+                cityName = "Chikhli";
+                getWeatherInfo(cityName);
+            }
 
-
+            getWeatherInfo(cityName);
+        }else {
+            Toast.makeText(this, "Please Enable Your internet connection", Toast.LENGTH_LONG).show();
+        }
+        locationEnabled();
         searchIV.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -118,6 +136,45 @@ public class MainActivity extends AppCompatActivity {
             imm.hideSoftInputFromWindow(activity.getCurrentFocus()
                     .getApplicationWindowToken(), 0);
     }
+
+
+    private boolean isNetworkConnected() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        return cm.getActiveNetworkInfo() != null && cm.getActiveNetworkInfo().isConnected();
+    }
+    public void locationEnabled(){
+        LocationManager lm = (LocationManager)getBaseContext().getSystemService(Context.LOCATION_SERVICE);
+        boolean gps_enabled = false;
+        boolean network_enabled = false;
+
+        try {
+            gps_enabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        } catch(Exception ex) {
+            Log.v("XYZXYZ0",ex.toString());
+        }
+
+        try {
+            network_enabled = lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        } catch(Exception ex) {
+            Log.v("XYZXYZ1",ex.toString());
+        }
+
+        if(!gps_enabled && !network_enabled) {
+            // notify user
+            new AlertDialog.Builder(this)
+                    .setMessage(R.string.gps_network_not_enabled)
+                    .setPositiveButton(R.string.open_location_settings, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface paramDialogInterface, int paramInt) {
+                            MainActivity.this.startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                        }
+                    })
+                    .setNegativeButton(R.string.Cancel,null)
+                    .show();
+        }
+    }
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
